@@ -10,7 +10,7 @@ namespace BSK_PS_4_5
 
     class GeneratorLFSR
     {
-        int l; // seed and f length
+        int l; // common length for seed and f
         List<int> indexes; // tells for us which digits are taking to XOR operation
         int[] tmp;
         int[] seed;
@@ -26,13 +26,12 @@ namespace BSK_PS_4_5
             indexes.Clear();
 
             this.l = s.Length;
-            this.tmp = new int[l];
-            this.seed = new int[l]; // to be frank it is unnecessary. We need tmp which is updated after every generating bit
-
+            this.tmp = new int[l];  // at start it is a copy of seed. After every getOnBit method is updating
+            this.seed = new int[l]; // we need remember seed when we call restart method
             for (int i = 0; i < l; i++)
             {
                 if (f[i].Equals('1')) { indexes.Add(i); } // determine which digits will be taking to XOR operation
-                seed[i] = tmp[i] = (int)Char.GetNumericValue(s[i]); // ascii 49 -> 1
+                seed[i] = tmp[i] = Program.toInt(s[i]); // ascii 49 -> 1, 48 -> 0
             }
         }
 
@@ -44,11 +43,18 @@ namespace BSK_PS_4_5
             }
         }
 
-        public int getOneBit() // generate one bit
+        public int getOneBitStandard() // generate one bit
         {
             int result;
             result = xor();
-            generateNewTmp(result); // add our determinated xor on begining and shift right tmp
+            updateTmp(result); // add our determinated xor on begining tmp and shift right rest of tmp
+            return result;
+        }
+
+        public int getOneBitExtended() // generate one bit, second method - without updating tmp
+        {
+            int result;
+            result = xor();
             return result;
         }
 
@@ -62,7 +68,7 @@ namespace BSK_PS_4_5
             return result;
         }
 
-        private void generateNewTmp(int xor)
+        public void updateTmp(int xor)
         {
             for (int i = l - 1; i > 0; i--) // for digits from 1 to (l-1), shift right
             {
@@ -78,16 +84,18 @@ namespace BSK_PS_4_5
         {
             int i;
             string s="", f=""; // seed, polynomial function
-            string fileName = "test3";
+            string fileName = "test";
             GeneratorLFSR generatorLFSR;
             byte[] fileBytes;
             byte[] encodedBytes;
             byte[] decodedBytes;
             BinaryWriter br;
             bool b = true;
+            string action = "";
 
-
-            setFunctionAndSeed(ref f, ref s);
+            s = "1101";
+            f = "1001";
+            //setFunctionAndSeed(ref f, ref s);
 
             generatorLFSR = new GeneratorLFSR(f, s);
 
@@ -99,11 +107,13 @@ namespace BSK_PS_4_5
             while (b)
             {
                 Console.WriteLine("*****************************************************************************************\n"
-                                 + "f:    " + f + "\n"
-                                 + "seed: " + s + "\n"
-                                 + "file: " + fileName + "\n"
+                                 + "f:           " + f + "\n"
+                                 + "seed:        " + s + "\n"
+                                 + "file:        " + fileName + "\n"
+                                 + "last action: " + action + "\n"
                                  + "Choose action: change function and seed(c) | change file(cf) | 2e | 2d | 3e | 3d | q");
-                switch (Console.ReadLine())
+                action = Console.ReadLine();
+                switch (action)
                 {
                     case "c":
                         setFunctionAndSeed(ref f, ref s);
@@ -124,6 +134,7 @@ namespace BSK_PS_4_5
                         br.Write(encodedBytes);
                         br.Close();
                         break;
+
                     case "2d":
                         // reading all bytes from file
                         fileBytes = File.ReadAllBytes(System.IO.Directory.GetCurrentDirectory() + @"\" + fileName + "encoded.bin");
@@ -134,11 +145,27 @@ namespace BSK_PS_4_5
                         br.Write(decodedBytes);
                         br.Close();
                         break;
-                    case "3e":
-                      
-                        break;
-                    case "3d":
 
+                    case "3e":
+                        // reading all bytes from file
+                        fileBytes = File.ReadAllBytes(System.IO.Directory.GetCurrentDirectory() + @"\" + fileName + ".bin");
+                        // encoding
+                        encodedBytes = exercise3encode(fileBytes, generatorLFSR);
+                        // write all bytes into the file
+                        br = new BinaryWriter(new FileStream(System.IO.Directory.GetCurrentDirectory() + @"\" + fileName + "encoded.bin", FileMode.Create));
+                        br.Write(encodedBytes);
+                        br.Close();
+                        break;
+
+                    case "3d":
+                        // reading all bytes from file
+                        fileBytes = File.ReadAllBytes(System.IO.Directory.GetCurrentDirectory() + @"\" + fileName + "encoded.bin");
+                        // decoding
+                        decodedBytes = exercise3decode(fileBytes, generatorLFSR);
+                        // write all bytes into the file
+                        br = new BinaryWriter(new FileStream(System.IO.Directory.GetCurrentDirectory() + @"\" + fileName + ".bin", FileMode.Create));
+                        br.Write(decodedBytes);
+                        br.Close();
                         break;
 
                     case "q":
@@ -153,25 +180,8 @@ namespace BSK_PS_4_5
 
         }
 
-        private static byte[] exercise2decode(byte[] fileBytes, GeneratorLFSR generatorLFSR)
-        {
-            generatorLFSR.reset();
-
-            byte[] decodedBytes = new byte[fileBytes.Length];
-            StringBuilder s = new StringBuilder();
-
-            for (int i = 0; i < fileBytes.Length; i++)
-            {
-                s.Clear();
-                s.Insert(0, Convert.ToString(fileBytes[i], 2).PadLeft(8, '0')); // we have string of 8 digits representing one byte. Example 00001100
-                s = updateS(s, generatorLFSR);
-
-                decodedBytes[i] = Convert.ToByte(s.ToString(), 2);
-            }
-
-            return decodedBytes;
-
-        }
+        
+        #region configuration methods
 
         private static void setFile(ref string fileName)
         {
@@ -197,33 +207,142 @@ namespace BSK_PS_4_5
             }
         }
 
+        public static int toInt(char x)
+        {
+            return Convert.ToInt32(x - '0');
+        }
+
+        public static char toChar(int c)
+        {
+            return Convert.ToChar(c + '0');
+        }
+        #endregion
+
+        #region exercise 2
 
         private static byte[] exercise2encode(byte[] fileBytes, GeneratorLFSR generatorLFSR)
         {
+            generatorLFSR.reset();
+
             byte[] encodedBytes = new byte[fileBytes.Length];
             StringBuilder s = new StringBuilder();
 
-            for(int i=0; i<fileBytes.Length; i++)
+            for (int i = 0; i < fileBytes.Length; i++) // for every byte in bytes array
             {
                 s.Clear();
                 s.Insert(0, Convert.ToString(fileBytes[i], 2).PadLeft(8, '0')); // we have string of 8 digits representing one byte. Example 00001100
-                s = updateS(s, generatorLFSR);
+                s = encodeByte(s, generatorLFSR); // encode all byte
 
-                encodedBytes[i] = Convert.ToByte(s.ToString(),2);
+                encodedBytes[i] = Convert.ToByte(s.ToString(), 2);
             }
 
             return encodedBytes;
         }
 
-        private static StringBuilder updateS(StringBuilder s, GeneratorLFSR generatorLFSR)
+
+        private static byte[] exercise2decode(byte[] fileBytes, GeneratorLFSR generatorLFSR)
         {
-            for(int i=0; i<s.Length; i++) // makes XOR for all digits
+            generatorLFSR.reset();
+
+            byte[] decodedBytes = new byte[fileBytes.Length];
+            StringBuilder s = new StringBuilder();
+
+            for (int i = 0; i < fileBytes.Length; i++)
             {
-                s[i] = (char)((int)s[i] ^ generatorLFSR.getOneBit()); 
+                s.Clear();
+                s.Insert(0, Convert.ToString(fileBytes[i], 2).PadLeft(8, '0')); // we have string of 8 digits representing one byte. Example 00001100
+                s = encodeByte(s, generatorLFSR);
+
+                decodedBytes[i] = Convert.ToByte(s.ToString(), 2);
+            }
+
+
+            return decodedBytes;
+
+        }
+
+       
+
+        private static StringBuilder encodeByte(StringBuilder s, GeneratorLFSR generatorLFSR)
+        {
+
+            for(int i=0; i<s.Length; i++) // makes XOR with xor and x for all digits
+            {
+                s[i] = toChar(toInt(s[i])^generatorLFSR.getOneBitStandard());
             }
 
             return s;
         }
 
+        
+        #endregion
+
+        #region exercise 3
+        private static byte[] exercise3encode(byte[] fileBytes, GeneratorLFSR generatorLFSR)
+        {
+            generatorLFSR.reset();
+
+            byte[] encodedBytes = new byte[fileBytes.Length];
+            StringBuilder s = new StringBuilder();
+
+            for (int i = 0; i < fileBytes.Length; i++) // for every byte in file
+            {
+                s.Clear();
+                s.Insert(0, Convert.ToString(fileBytes[i], 2).PadLeft(8, '0')); // we have string of 8 digits representing one byte. Example 00001100
+                s = encodeByte3(s, generatorLFSR);
+
+                encodedBytes[i] = Convert.ToByte(s.ToString(), 2);
+            }
+
+            return encodedBytes;
+        }
+
+        private static byte[] exercise3decode(byte[] fileBytes, GeneratorLFSR generatorLFSR)
+        {
+            generatorLFSR.reset();
+
+            byte[] decodedBytes = new byte[fileBytes.Length];
+            StringBuilder s = new StringBuilder();
+
+            for (int i = 0; i < fileBytes.Length; i++) // for every byte in file
+            {
+                s.Clear();
+                s.Insert(0, Convert.ToString(fileBytes[i], 2).PadLeft(8, '0')); // we have string of 8 digits representing one byte. Example 00001100
+                s = decodeByte(s, generatorLFSR);
+
+                decodedBytes[i] = Convert.ToByte(s.ToString(), 2);
+            }
+
+
+            return decodedBytes;
+        }
+
+        private static StringBuilder encodeByte3(StringBuilder s, GeneratorLFSR generatorLFSR)
+        {
+
+            for (int i = 0; i < s.Length; i++) // makes XOR for all digits
+            {
+
+                s[i] = toChar(toInt(s[i])^generatorLFSR.getOneBitExtended());
+                generatorLFSR.updateTmp(toInt(s[i]));
+            }
+
+            return s;
+        }
+    
+        private static StringBuilder decodeByte(StringBuilder s, GeneratorLFSR generatorLFSR)
+        {
+            int y;
+            for (int i = 0; i < s.Length; i++) // makes XOR for all digits
+            {
+                y = toInt(s[i]);
+                s[i] = toChar((y^generatorLFSR.getOneBitExtended()));
+                generatorLFSR.updateTmp(y);
+            }
+
+            return s;
+        }
+
+        #endregion
     }
 }
