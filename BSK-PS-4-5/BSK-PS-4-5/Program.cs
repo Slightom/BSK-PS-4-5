@@ -12,7 +12,7 @@ namespace BSK_PS_4_5
     {
         int l; // common length for seed and f
         List<int> indexes; // tells for us which digits are taking to XOR operation
-        int[] tmp;
+        public int[] tmp { get; set; }
         int[] seed;
 
         public GeneratorLFSR(String f, String s)
@@ -20,6 +20,7 @@ namespace BSK_PS_4_5
             indexes = new List<int>();
             init(f, s);           
         }
+
 
         public void init(String f, String s)
         {
@@ -106,12 +107,12 @@ namespace BSK_PS_4_5
 
             while (b)
             {
-                Console.WriteLine("*****************************************************************************************\n"
+                Console.WriteLine("\n****************************************************************************************************************\n"
                                  + "f:           " + f + "\n"
                                  + "seed:        " + s + "\n"
                                  + "file:        " + fileName + "\n"
                                  + "last action: " + action + "\n"
-                                 + "Choose action: change function and seed(c) | change file(cf) | 2e | 2d | 3e | 3d | q");
+                                 + "Choose action: change function and seed(c) | change file(cf) | resetGenerator(r) | 1 | 2e | 2d | 3e | 3d | q");
                 action = Console.ReadLine();
                 switch (action)
                 {
@@ -122,6 +123,15 @@ namespace BSK_PS_4_5
 
                     case "cf":
                         setFile(ref fileName);
+                        break;
+
+                    case "r":
+                        generatorLFSR.reset();
+                        break;
+
+                    case "1":
+                        string e1 = exercise1(generatorLFSR, s);
+                        Console.WriteLine("\nY: " + e1);
                         break;
 
                     case "2e":
@@ -181,6 +191,8 @@ namespace BSK_PS_4_5
         }
 
         
+
+
         #region configuration methods
 
         private static void setFile(ref string fileName)
@@ -216,6 +228,30 @@ namespace BSK_PS_4_5
         {
             return Convert.ToChar(c + '0');
         }
+        #endregion
+
+        #region exercise 1
+
+        private static string exercise1(GeneratorLFSR generatorLFSR, string seed)
+        {
+            String s = "";
+            Console.WriteLine();
+            for (int i = 0; i < seed.Length; i++)
+            {
+                
+                for (int j=0; j<generatorLFSR.tmp.Length; j++)
+                {
+                    Console.Write(generatorLFSR.tmp[j]);
+                }
+                Console.WriteLine();
+                s += generatorLFSR.getOneBitStandard();
+            }
+
+
+
+            return s;
+        }
+
         #endregion
 
         #region exercise 2
